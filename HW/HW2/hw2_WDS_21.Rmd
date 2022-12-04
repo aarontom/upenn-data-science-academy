@@ -1,0 +1,228 @@
+---
+title: "WDS, HW 2"
+author:
+- Aaron
+- Neil
+- Ben
+- Luke
+- Tanvi
+date: 'Due: 10:00PM, Friday, July 16, 2021'
+output:
+  html_document:
+    code_folding: show
+    highlight: haddock
+    theme: lumen
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+urlcolor: blue
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results="show", fig.width=8, fig.height=4, warning=FALSE)
+options(scipen = 0, digits = 3)  # controls base R output
+# check if you have ISLR package, if not, install it
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2)
+```
+
+
+\pagebreak
+
+
+# Objectives 
+
+*The main purpose for this homework is to tell the difference between probability and statistics.* Using the Roulette game as illustration, we go through the main elements of probability and statstics. We then learn how to estimate unknown parameters in a population with precision, i.e., a confidence interval. Simulations help us to understand the interpretation of a confidence interval. 
+
+- Continue to get used to `RStudio` and `RMarkdown`
+- Probability
+  - Random variables and their distributions
+  - Population parameters: expected values and variances
+  - Normal variables
+  - Central limit theorem (CLT)
+
+- Statistics
+  - Sample means and sample variances
+  - Use sample mean to estimate the population mean
+  - Confidence intervals/hypothesis tests
+  
+- Packages/functions
+    - `dplyr`
+    - `ggplot`
+    - `pnorm()`, `qnorm()`, `dnorm()`
+
+
+# Review materials
+
+
+- Study Module 2: Probability_Statistics_101
+
+
+# Question 1: Probability
+
+The following questions refer to the Red-Black Roulette game. After the ball is spun it will land in one of the slots.
+
+a.	What is the probability that the ball will land in any one slot?
+
+The probability a ball will land on a specific spot is a 1 in 38 chance. 
+
+b.	A player will bet \$1 each time. Let $X$ be the payoff.
+
+    (i)	If the player bets on a single number, write down the distribution of $X$, i.e. the possible values of $X$ and the corresponding probabilities. Calculate the expected value of winning and the standard deviation.
+    
+If a player bets on a single number, the distribution of $x$ is a binomial distribution, would be 1/38 with a possible value of +1 for the player and 37/38 for the casino with a possible value of -1.
+```{r single_bet}
+  expected_1 <- 1/38*34 + 37/38*-1
+  variance_1 <- (35-(-0.0526))^2 * 1/38 + (-1 -(-0.0526))^2 * 37/38
+  standard_1 <- sqrt(variance_1)
+```
+      
+    
+    (ii)	Repeat number (i) if the player bets on two numbers.
+```{r double_bet}
+  expected_2 <- 2/38*34 + 36/38*-1
+  variance_2 <- (35-(-0.0526))^2 * 2/38 + (-1 -(-0.0526))^2 * 36/38
+  standard_2 <- sqrt(variance_2)
+```
+    
+    (iii)	If one plays the game by betting on a single number 1000 times, how much do you expect the person to win?
+```{r}
+# expected gain
+
+
+n <- 1000
+win_prob <- 1/38
+# winning event
+set.seed(2021)
+win_vec <- rbinom(n,1,win_prob) 
+# if win: +35; if lose: -1
+gain_vec <- win_vec*36
+gain_vec <- gain_vec-1
+# print first 100 gains
+# head(gain_vec, 100)
+# to find average gain
+sum(gain_vec)
+```
+  According to our seed simulation, we would expect the person to win $8.
+    
+    (iv)	Explain now why the casinos always make money on the roulette game.
+    
+Casinos always make money on the roulette game because no matter what way you position yourself- all black, all red, or a specific number, the casino is favored to win. The highest probability you could give yourself is 18/38, and that in itself is not above 50%, making the results biased towards the casino. Taking into account the concept of expected value, as the amount of games increases, the more likely you are to approach that value- thus the casinos are extremely likely make money on the roulette game as the number of trials approach larger and larger numbers.
+
+c. Let's "play" the game using code.  
+
+    (i) We bet 30 times each round. Put 30 payoffs into a vector and store into a variable.
+```{r}
+set.seed(1)
+num_win = rbinom(30, 30, 1/36)
+num_win
+```
+
+   (ii) Plot the histogram of the 30 payoffs. What is the total payoffs for this round?
+```{r}
+num_lose <- 30- num_win
+avg_gain <-  (num_win - num_lose)/30
+hist(avg_gain)
+
+```
+  
+
+    (iii) Let's play another 100 rounds. Plot the histogram of total payoffs. What is the average payoff from these 100 rounds? Is this as expected? 
+```{r}
+set.seed(1)
+
+num_win <- rbinom(30, 100, 18/38)
+num_lose <- 100 - num_win
+
+avg_gain <-  (num_win - num_lose)/100
+
+hist(avg_gain)
+```
+
+
+# Question 2: Statistics 
+    
+This exercise is designed to help you understand the notion of confidence interval and understand confidence interval through simulations.
+
+Let $Y$ be the average winning amount among 100 games of betting \$1 each time in the  Red-Black Roulette game. We know that $Y$ follows approximately a normal distribution with mean $\mu = -.0526$ and standard deviation $\sigma = .1$. We will start to record the game payoff each time but pretend that we do not know the true mean is -.0526. 
+
+a. Generate 50 $Y's$ from $N(\mu = -.0526, \sigma =.1)$ with `set.seed(1)`. Construct a $95\%$ confidence interval for the unknown mean. State the confidence interval. Is the true value -.0526 inside the confidence interval?
+
+The true value -.0526 is inside the confidence interval.
+```{r}
+set.seed(1)
+n_sim <- 50 # number of simulations
+mu_hat <- numeric(n_sim)   # estimate
+upper_ci <- numeric(n_sim)  # lower bound
+lower_ci <- numeric(n_sim)  # upper bound
+
+# Carry out the simulation
+for (i in 1:n_sim){
+  y <- rnorm(50, mean= -.0526, sd = .1)
+  mu_hat <- mean(y)
+  mu_sd <- sd(y)
+  lower_ci[i] <- mu_hat - (2*mu_sd)/sqrt(50)
+  upper_ci[i] <- mu_hat + (2*mu_sd)/sqrt(50)
+}
+
+answer <- (lower_ci < -.0526) & (upper_ci > -.0526)
+sum(answer)
+
+
+results <- cbind(lower_ci, upper_ci)
+
+ci_df <- data.frame(
+  id = 1:n_sim,
+  lower_ci = lower_ci, 
+  upper_ci = upper_ci)
+
+ggplot(ci_df,aes(x = id, y = (lower_ci + upper_ci)/2)) +
+  geom_point() + 
+  geom_errorbar(aes(ymax = upper_ci, ymin = lower_ci, color = answer)) +
+  labs(x = "Trial", y = "mean") 
+```
+
+
+
+b. Repeat question 2a. 100 times to generate 100 samples (each has sample size 50 and follows $N(\mu = -.0526, \sigma =.1)$) and produce 100 95\% confidence intervals. How many of the confidence intervals capture the true mean -.0526? Display your 100 confidence intervals in a meaningful way. 
+
+```{r}
+set.seed(1)
+n_sim <- 100 # number of simulations
+mu_hat <- numeric(n_sim)   # estimate
+upper_ci <- numeric(n_sim)  # lower bound
+lower_ci <- numeric(n_sim)  # upper bound
+
+# Carry out the simulation
+for (i in 1:n_sim){
+  y <- rnorm(50, mean= -.0526, sd = .1)
+  mu_hat <- mean(y)
+  mu_sd <- sd(y)
+  lower_ci[i] <- mu_hat - (2*mu_sd)/sqrt(50)
+  upper_ci[i] <- mu_hat + (2*mu_sd)/sqrt(50)
+}
+
+answer <- (lower_ci < -.0526) & (upper_ci > -.0526)
+sum(answer)
+
+
+results <- cbind(lower_ci, upper_ci)
+
+ci_df <- data.frame(
+  id = 1:n_sim,
+  lower_ci = lower_ci, 
+  upper_ci = upper_ci)
+
+ggplot(ci_df,aes(x = id, y = (lower_ci + upper_ci)/2)) +
+  geom_point() + 
+  geom_errorbar(aes(ymax = upper_ci, ymin = lower_ci, color = answer)) +
+  labs(x = "Trial", y = "mean") 
+```
+
+
+c. Summarize the interpretation of a 95\% confidence interval based on the simulation in question 2b.  
+The interpretation of a 95% confidence interval based on the simulation is essentially that 95% of the data captures the true mean of our expected game winnings, while 5% of the data is not representative of true mean. In this case, out of this simulation, 3 out of the 100 trials turned out to be not within the bounds of our confidence interval, but we were still able to maintain the 95% confidence interval. It turns out that we were 97% accurate, for this specific simulation and seed.
